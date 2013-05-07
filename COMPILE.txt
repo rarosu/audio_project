@@ -1,0 +1,29 @@
+LINUX:
+    * Create a build directory (if creating the build directory within the project directory, call it 'build' so that it is recognized by .gitignore).
+    * Enter the new build directory.
+    * Call cmake /path/to/CMakeLists.txt
+    * Call make in the build directory.
+
+WINDOWS
+    * Create a build directory (if creating within the project directory, call it 'build-vs' to have it be ignored by git)
+    * Enter the new build directory.
+    * Call cmake /path/to/CMakeLists.txt from a shell (e.g. git shell)
+    * Open the generated solution and build all.
+
+
+EXAMPLE
+
+Having the following project structure:
+
+audio_project/
+    CMakeLists.txt
+    ... source files and stuff ...
+
+Create a 'build' or a 'build-vs' directory (build in this example):
+
+audio_project/
+    build/
+    CMakeLists.txt
+    ... source files and stuff ...
+
+cd into build. Call 'cmake ..'. On Linux, call 'make' to compile. On Windows, open the generated Visual Studio solution and hit build solution.
