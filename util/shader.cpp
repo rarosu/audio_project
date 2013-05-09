@@ -1,5 +1,7 @@
 #include "shader.hpp"
 #include <memory>
+#include <iostream>
+#include <fstream>
 #include <cstdio>
 
 Shader::Shader(const char* source, GLenum shaderType) {
@@ -31,28 +33,26 @@ Shader::~Shader() {
 }
 
 std::shared_ptr<Shader> Shader::loadShader(const std::string& filename, GLenum shaderType) {
-    FILE* f = fopen(filename.c_str(), "r");
-    if (f == NULL) {
+	std::ifstream file(filename.c_str());
+
+	std::cout << "Hello" << std::endl;
+
+	if (!file.is_open()) {
         std::cerr << "ERROR: Failed to open shader: " << filename << std::endl;
         return std::shared_ptr<Shader>();
     }
 
-    fseek(f, 0, SEEK_END);
-    size_t length = ftell(f);
-    rewind(f);
+	std::string source;
+	while (!file.eof()) {
+		std::string line;
+		std::getline(file, line);
 
-    std::unique_ptr<char> source(new char[length + 1]);
-    size_t result = fread(source.get(), 1, length, f);
-    if (result != length) {
-        std::cerr << "ERROR: Failed to read shader: " << filename << std::endl;
-        return std::shared_ptr<Shader>();
-    }
+		source += line + "\n";
+	}
 
-    source.get()[length] = '\0';
+	std::cout << source << std::endl;
 
-    fclose(f);
-
-    return std::shared_ptr<Shader>(new Shader(source.get(), shaderType));
+	return std::shared_ptr<Shader>(new Shader(source.c_str(), shaderType));
 }
 
 

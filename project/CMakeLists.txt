@@ -20,17 +20,17 @@ else()
 endif()
 
 # Find required libraries
-#find_package(OpenGL REQUIRED)
-#find_package(GLEW REQUIRED)
-#find_package(GLFW REQUIRED)
-#find_package(DevIL REQUIRED)
-#find_package(GLM REQUIRED)
-#
-#include_directories(${OPENGL_INCLUDE_DIR})
-#include_directories(${GLEW_INCLUDE_DIRS})
-#include_directories(${GLFW_INCLUDE_DIRS})
-#include_directories(${IL_INCLUDE_DIRS})
-#include_directories(${GLM_INCLUDE_DIRS})
+find_package(OpenGL REQUIRED)
+find_package(GLEW REQUIRED)
+find_package(GLFW REQUIRED)
+find_package(DevIL REQUIRED)
+find_package(GLM REQUIRED)
+
+include_directories(${OPENGL_INCLUDE_DIR})
+include_directories(${GLEW_INCLUDE_DIRS})
+include_directories(${GLFW_INCLUDE_DIRS})
+include_directories(${IL_INCLUDE_DIRS})
+include_directories(${GLM_INCLUDE_DIRS})
 
 include_directories("${CMAKE_SOURCE_DIR}")
 link_directories("${CMAKE_BINARY_DIR}/util")

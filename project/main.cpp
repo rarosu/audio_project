@@ -27,6 +27,8 @@ int main(int argc, char* argv[]) {
         glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);
 
         LabApplication::ContextDescription description;
+		description.m_openglVersionMajor = 4;
+		description.m_openglVersionMinor = 0;
         description.m_windowWidth = 800;
         description.m_windowHeight = 600;
         description.m_windowTitle = "Texturing & Lighting";
