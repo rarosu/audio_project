@@ -14,11 +14,14 @@ public:
     void onRender(float dt, float interpolation);
     void onResize(int width, int height);
 private:
+	ALCdevice* m_ALdevice;
+	ALCcontext* m_ALcontext;
+	ALuint m_backgroundBuffer;
+	ALuint m_backgroundSource;
+
     std::shared_ptr<Program> m_program;
     std::shared_ptr<Texture> m_texture;
     std::shared_ptr<Mesh> m_mesh;
-	ALCdevice* m_ALdevice;
-	ALCcontext* m_ALcontext;
     std::map<std::string, Material> m_materialLibrary;
 
     float m_cameraPolarAngle;
@@ -105,15 +108,39 @@ Lab::Lab()
         GLCheck(glUniform4f(intensityUniform, 1.0f, 1.0f, 1.0f, 1.0f));
     }
 
+	// initialize OpenAL
 	m_ALdevice = alcOpenDevice(NULL);
 	if (m_ALdevice != nullptr) {
 		m_ALcontext = alcCreateContext(m_ALdevice, NULL);
 		if (m_ALcontext != nullptr)
 			alcMakeContextCurrent(m_ALcontext);
 	}
+
+	ALenum alError;
+
+	// setup OpenAL buffers
+	alGenBuffers(1, &m_backgroundBuffer);
+	if ((alError = alGetError()) != AL_NO_ERROR) {
+		throw r2ExceptionRuntimeM("Failed to generate sound buffer");
+	}
+
+	// load the wav
+	
+	// set the buffer data
+	//alBufferData(m_backgroundBuffer
+
+	// unload the wav
+
+	// generate a source depending on the buffer
+	//alGenSources(1, &m_backgroundSource);
+	//alSourcei(m_backgroundSource, AL_BUFFER, m_backgroundBuffer);
+
 }
 
 Lab::~Lab() {
+	//alDeleteSources(1, &m_backgroundSource);
+	//alDeleteBuffers(1, &m_backgroundBuffer);
+
 	alcDestroyContext(m_ALcontext);
 	alcCloseDevice(m_ALdevice);
 }
