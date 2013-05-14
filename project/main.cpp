@@ -1,6 +1,7 @@
 #include <util/util.hpp>
 #include <AL/al.h>
 #include <AL/alc.h>
+#include <AL/alut.h>
 #include <iostream>
 #include <string>
 #include <memory>
@@ -108,12 +109,8 @@ Lab::Lab()
         GLCheck(glUniform4f(intensityUniform, 1.0f, 1.0f, 1.0f, 1.0f));
     }
 
-	// initialize OpenAL
-	m_ALdevice = alcOpenDevice(NULL);
-	if (m_ALdevice != nullptr) {
-		m_ALcontext = alcCreateContext(m_ALdevice, NULL);
-		if (m_ALcontext != nullptr)
-			alcMakeContextCurrent(m_ALcontext);
+	if (!alutInit(NULL, NULL)) {
+		std::cerr << "Failed to initialize OpenAL" << std::endl;
 	}
 
 	ALenum alError;
@@ -141,8 +138,7 @@ Lab::~Lab() {
 	//alDeleteSources(1, &m_backgroundSource);
 	//alDeleteBuffers(1, &m_backgroundBuffer);
 
-	alcDestroyContext(m_ALcontext);
-	alcCloseDevice(m_ALdevice);
+	alutExit();
 }
 
 void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& previousInput) {
