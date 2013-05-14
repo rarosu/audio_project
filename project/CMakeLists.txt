@@ -25,12 +25,14 @@ find_package(GLEW REQUIRED)
 find_package(GLFW REQUIRED)
 find_package(DevIL REQUIRED)
 find_package(GLM REQUIRED)
+find_package(OpenAL REQUIRED)
 
 include_directories(${OPENGL_INCLUDE_DIR})
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${GLFW_INCLUDE_DIRS})
 include_directories(${IL_INCLUDE_DIRS})
 include_directories(${GLM_INCLUDE_DIRS})
+include_directories(${OPENAL_INCLUDE_DIRS})
 
 include_directories("${CMAKE_SOURCE_DIR}")
 link_directories("${CMAKE_BINARY_DIR}/util")
@@ -38,7 +40,7 @@ link_directories("${CMAKE_BINARY_DIR}/r2tk")
 
 # Compile
 #set(LIBRARIES ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES} ${IL_LIBRARIES} r2tk util)
-set(LIBRARIES r2tk util)
+set(LIBRARIES ${OPENAL_LIBRARIES} r2tk util)
 set(HEADERS )
 set(SOURCES main.cpp)
 add_executable(project ${HEADERS} ${SOURCES})

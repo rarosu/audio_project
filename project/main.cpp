@@ -1,4 +1,6 @@
 #include <util/util.hpp>
+#include <AL/al.h>
+#include <AL/alc.h>
 #include <iostream>
 #include <string>
 #include <memory>
@@ -6,6 +8,7 @@
 class Lab : public LabTemplate {
 public:
     Lab();
+	~Lab();
 
     void onUpdate(float dt, const InputState& currentInput, const InputState& previousInput);
     void onRender(float dt, float interpolation);
@@ -14,6 +17,8 @@ private:
     std::shared_ptr<Program> m_program;
     std::shared_ptr<Texture> m_texture;
     std::shared_ptr<Mesh> m_mesh;
+	ALCdevice* m_ALdevice;
+	ALCcontext* m_ALcontext;
     std::map<std::string, Material> m_materialLibrary;
 
     float m_cameraPolarAngle;
@@ -99,6 +104,18 @@ Lab::Lab()
 
         GLCheck(glUniform4f(intensityUniform, 1.0f, 1.0f, 1.0f, 1.0f));
     }
+
+	m_ALdevice = alcOpenDevice(NULL);
+	if (m_ALdevice != nullptr) {
+		m_ALcontext = alcCreateContext(m_ALdevice, NULL);
+		if (m_ALcontext != nullptr)
+			alcMakeContextCurrent(m_ALcontext);
+	}
+}
+
+Lab::~Lab() {
+	alcDestroyContext(m_ALcontext);
+	alcCloseDevice(m_ALdevice);
 }
 
 void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& previousInput) {
