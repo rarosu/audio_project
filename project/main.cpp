@@ -109,34 +109,30 @@ Lab::Lab()
         GLCheck(glUniform4f(intensityUniform, 1.0f, 1.0f, 1.0f, 1.0f));
     }
 
+
+	// initialize OpenAL
 	if (!alutInit(NULL, NULL)) {
 		std::cerr << "Failed to initialize OpenAL" << std::endl;
 	}
 
-	ALenum alError;
-
 	// setup OpenAL buffers
 	alGenBuffers(1, &m_backgroundBuffer);
-	if ((alError = alGetError()) != AL_NO_ERROR) {
-		throw r2ExceptionRuntimeM("Failed to generate sound buffer");
-	}
 
-	// load the wav
+	m_backgroundBuffer = alutCreateBufferFromFile("resources/sounds/wind-howl-01.wav");
 	
-	// set the buffer data
-	//alBufferData(m_backgroundBuffer
-
-	// unload the wav
-
 	// generate a source depending on the buffer
-	//alGenSources(1, &m_backgroundSource);
-	//alSourcei(m_backgroundSource, AL_BUFFER, m_backgroundBuffer);
+	alGenSources(1, &m_backgroundSource);
+	alSourcei(m_backgroundSource, AL_BUFFER, m_backgroundBuffer);
+	alSourcei(m_backgroundSource, AL_LOOPING, AL_TRUE);
 
+	alSourcePlay(m_backgroundSource);
 }
 
 Lab::~Lab() {
-	//alDeleteSources(1, &m_backgroundSource);
-	//alDeleteBuffers(1, &m_backgroundBuffer);
+	alSourceStop(m_backgroundSource);
+
+	alDeleteSources(1, &m_backgroundSource);
+	alDeleteBuffers(1, &m_backgroundBuffer);
 
 	alutExit();
 }
@@ -157,6 +153,9 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
     m_camera.setPosition(cameraPosition);
     m_camera.setFacing(cameraOrientation);
     m_camera.commit();
+
+	// set the OpenAL listener by the camera
+	alListener3f(AL_POSITION, cameraPosition.x, cameraPosition.y, cameraPosition.z);
 }
 
 void Lab::onRender(float dt, float interpolation) {
