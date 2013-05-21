@@ -20,6 +20,6 @@ else()
 endif()
 
 # Compile
-set(HEADERS r2-global.hpp r2-exception.hpp r2-assert.hpp r2-singleton.hpp r2-observer.hpp)
-set(SOURCES r2-exception.cpp r2-assert.cpp)
+set(HEADERS r2-global.hpp r2-exception.hpp r2-assert.hpp r2-singleton.hpp r2-observer.hpp r2-data-types.hpp)
+set(SOURCES r2-exception.cpp r2-assert.cpp r2-data-types.cpp)
 add_library(r2tk STATIC ${HEADERS} ${SOURCES})
