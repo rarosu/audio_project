@@ -7,23 +7,10 @@
 #include <string>
 #include <memory>
 #include <r2tk\r2-data-types.hpp>
+#include "sound.hpp"
 
 const int SOUND_CHUNK_COUNT = 2;
 const int SOUND_CHUNK_SIZE = 44100 * 3;
-
-struct WAVHandle {
-	std::ifstream m_file;
-	unsigned int m_channelCount;
-	unsigned int m_sampleRate;
-	unsigned int m_bytesPerSample;
-	unsigned int m_dataSize;
-
-	WAVHandle(const std::string& filepath);
-	~WAVHandle() throw();
-	
-	std::streamsize readChunk(size_t chunkSize, unsigned char* data);
-	ALenum getFormat() const;
-};
 
 class Lab : public LabTemplate {
 public:
@@ -34,9 +21,8 @@ public:
     void onRender(float dt, float interpolation);
     void onResize(int width, int height);
 private:
-	ALuint m_backgroundSource;
-	std::vector<ALuint> m_backgroundBuffers;
-	std::shared_ptr<WAVHandle> m_soundFileHandle;
+	std::shared_ptr<WAVHandle> m_sound;
+	std::shared_ptr<SoundSource> m_source;
 
     std::shared_ptr<Program> m_program;
     std::shared_ptr<Texture> m_texture;
@@ -46,7 +32,8 @@ private:
 	float m_modelOrientation;
 	glm::mat4 m_modelMatrix;
 
-    float m_cameraPolarAngle;
+	float m_cameraOrientation;
+    glm::vec3 m_cameraPosition;
     Camera m_camera;
 };
 
@@ -75,82 +62,10 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-WAVHandle::WAVHandle(const std::string& filepath) {
-	
-	// read the file
-	m_file.open(filepath.c_str(), std::ios::binary);
-
-	if (!m_file.is_open())
-		throw r2ExceptionIOM("Failed to open wav file: " + filepath);
-
-	// check the RIFF header
-	char riffHeader[12];
-	m_file.read(riffHeader, 12);
-
-	if (strncmp((const char*)&riffHeader[0], "RIFF", 4) != 0)
-		throw r2ExceptionIOM("Failed to read .wav file: " + filepath + " (not a RIFF file)");
-	if (strncmp((const char*)&riffHeader[8], "WAVE", 4) != 0)
-		throw r2ExceptionIOM("Failed to read .wav file: " + filepath + " (not a WAVE file)");
-
-	std::cout << sizeof(unsigned int) << std::endl;
-
-	char subchunkHeader[8];
-	do {
-		m_file.read(subchunkHeader, 8);
-		if (strncmp((const char*)&subchunkHeader[0], "fmt", 3) == 0) {
-			char fmtHeader[16];
-			m_file.read(fmtHeader, 16);
-
-			m_channelCount = *(unsigned short*) &fmtHeader[2];
-			m_sampleRate = *(unsigned int*) &fmtHeader[4];
-			m_bytesPerSample = (*(unsigned int*) &fmtHeader[8]) / m_sampleRate;
-		} else if (strncmp((const char*)&subchunkHeader[0], "data", 4) == 0) {
-			m_dataSize = *(unsigned int*) &subchunkHeader[4];
-			break;
-		} else {
-			unsigned int fnulSize = (*(unsigned int*)&subchunkHeader[4]);
-			char* fnul = new char[fnulSize];
-			m_file.read(fnul, fnulSize);
-			delete[] fnul;
-		}
-	} while (!m_file.eof()); 
-}
-
-WAVHandle::~WAVHandle() throw() {
-	m_file.close();
-}
-	
-std::streamsize WAVHandle::readChunk(size_t chunkSize, unsigned char* data) {
-	m_file.read((char*)data, chunkSize);
-	return m_file.gcount();
-}
-
-ALenum WAVHandle::getFormat() const {
-	char field = ((m_channelCount == 2) << 1) | 
-				 (m_bytesPerSample == 4);
-
-	ALenum format;
-	switch (field) {
-	case 0:
-		format = AL_FORMAT_MONO8;
-		break;
-	case 1:
-		format = AL_FORMAT_MONO16;
-		break;
-	case 2:
-		format = AL_FORMAT_STEREO8;
-		break;
-	case 3:
-		format = AL_FORMAT_STEREO16;
-		break;
-	}
-
-	return format;
-}
-
 
 Lab::Lab()
-    : m_cameraPolarAngle(0.0f)
+    : m_cameraOrientation(-M_PI * 0.5f)
+	, m_cameraPosition(0.0f, 0.0f, 10.0f)
 	, m_modelOrientation(0.0f) {
     // set state
     GLCheck(glEnable(GL_DEPTH_TEST));
@@ -214,76 +129,50 @@ Lab::Lab()
 		std::cerr << "Failed to initialize OpenAL" << std::endl;
 	}
 
-	// setup OpenAL buffers
-	m_backgroundBuffers.resize(SOUND_CHUNK_COUNT);
-
-	m_soundFileHandle = std::shared_ptr<WAVHandle>(new WAVHandle("resources/sounds/wind-howl-01.wav"));
-
-	alGenBuffers(SOUND_CHUNK_COUNT, &m_backgroundBuffers[0]);
-	if (alGetError() != AL_NO_ERROR)
-		throw r2ExceptionRuntimeM("Failed to generate buffers");
-	
-	for (int i = 0; i < SOUND_CHUNK_COUNT; ++i) {
-		std::vector<unsigned char> bufferData(SOUND_CHUNK_SIZE);
-		std::streamsize bytesRead = m_soundFileHandle->readChunk(SOUND_CHUNK_SIZE, &bufferData[0]);
-		if (bytesRead != SOUND_CHUNK_SIZE) {
-			// TODO: Whale, whale, whale, what have we here?
-			//
-			//    ___\|/__
-			//   /^  >    \/|
-			//   \-_______/\|
-			//	  
-		}
-
-		alBufferData(m_backgroundBuffers[i],
-			m_soundFileHandle->getFormat(),
-			&bufferData[0],
-			bytesRead,
-			m_soundFileHandle->m_sampleRate);
-		if (alGetError() != AL_NO_ERROR)
-			throw r2ExceptionRuntimeM("Failed to send data to buffer");
-	}
-	
-	
-	// generate a source depending on the buffer
-	alGenSources(1, &m_backgroundSource);
-	if (alGetError() != AL_NO_ERROR)
-			throw r2ExceptionRuntimeM("Failed to generate source");
-
-	alSourceQueueBuffers(m_backgroundSource, SOUND_CHUNK_COUNT, &m_backgroundBuffers[0]);
-	if (alGetError() != AL_NO_ERROR)
-			throw r2ExceptionRuntimeM("Failed to queue buffers to source");
-
-	alSourcePlay(m_backgroundSource);
-	if (alGetError() != AL_NO_ERROR)
-			throw r2ExceptionRuntimeM("Failed to play source");
+	m_sound = std::shared_ptr<WAVHandle>(new WAVHandle("resources/sounds/wind-howl-01.wav"));
+	m_source = std::shared_ptr<SoundSource>(new SoundSource(m_sound, glm::vec3(0.0f, 0.0f, 0.0f), true));
+	m_source->play();
 }
 
-Lab::~Lab() {
-	alSourceStop(m_backgroundSource);
-
-	alDeleteSources(1, &m_backgroundSource);
-	alDeleteBuffers(SOUND_CHUNK_COUNT, &m_backgroundBuffers[0]);
-	
+Lab::~Lab() {	
+	// TODO: Whale, whale, whale, what have we here?
+	//
+	//    ___\|/__
+	//   /^  >    \/|
+	//   \-_______/\|
+	//	  
 	alutExit();
 }
 
 void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& previousInput) {
-    if (currentInput.m_keyboard.m_keys[GLFW_KEY_RIGHT])
-        m_cameraPolarAngle += M_PI * 0.5 * dt;
-    if (currentInput.m_keyboard.m_keys[GLFW_KEY_LEFT])
-        m_cameraPolarAngle -= M_PI * 0.5 * dt;
+	if (currentInput.m_keyboard.m_keys[GLFW_KEY_RIGHT] || currentInput.m_keyboard.m_keys['D'])
+		m_cameraOrientation += M_PI * dt;
+	if (currentInput.m_keyboard.m_keys[GLFW_KEY_LEFT] || currentInput.m_keyboard.m_keys['A'])
+		m_cameraOrientation -= M_PI * dt;
 
-    glm::vec3 cameraPosition;
-    cameraPosition.x = 25.0f * cos(m_cameraPolarAngle);
-    cameraPosition.y = 10.0f;
-    cameraPosition.z = -25.0f * sin(m_cameraPolarAngle);
+	glm::vec3 cameraOrientation;
+	cameraOrientation.x = cos(m_cameraOrientation);
+	cameraOrientation.y = 0.0f;
+	cameraOrientation.z = sin(m_cameraOrientation);
 
-    glm::vec3 cameraOrientation = -cameraPosition;
+	if (currentInput.m_keyboard.m_keys[GLFW_KEY_UP] || currentInput.m_keyboard.m_keys['W'])
+		m_cameraPosition += cameraOrientation * 10.0f * dt;
+	if (currentInput.m_keyboard.m_keys[GLFW_KEY_DOWN] || currentInput.m_keyboard.m_keys['S'])
+		m_cameraPosition -= cameraOrientation * 10.0f * dt;
+		
 
-    m_camera.setPosition(cameraPosition);
-    m_camera.setFacing(cameraOrientation);
-    m_camera.commit();
+	glm::vec3 rightOrientation = glm::cross(cameraOrientation, glm::vec3(0.0f, 1.0f, 0.0f));
+	if (currentInput.m_keyboard.m_keys['E'])
+		m_cameraPosition += rightOrientation * 10.0f * dt;
+	if (currentInput.m_keyboard.m_keys['Q'])
+		m_cameraPosition -= rightOrientation * 10.0f * dt;
+
+	m_camera.setPosition(m_cameraPosition);
+	m_camera.setFacing(cameraOrientation);
+	m_camera.commit();
+
+	// set the OpenAL listener by the camera
+	alListener3f(AL_POSITION, m_cameraPosition.x, m_cameraPosition.y, m_cameraPosition.z);
 
 	// rotate the box at a constant speed
 	m_modelOrientation += M_PI * 0.1f * dt;
@@ -292,29 +181,8 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 							  -sin(m_modelOrientation), 0, cos(m_modelOrientation), 0,
 							  0,						0, 0,						1);
 
-	// set the OpenAL listener by the camera
-	alListener3f(AL_POSITION, cameraPosition.x, cameraPosition.y, cameraPosition.z);
-
-	// process the source
-	int processed = 0;
-	alGetSourcei(m_backgroundSource, AL_BUFFERS_PROCESSED, &processed);
-
-	while (processed--) {
-		ALuint buffer;
-
-		alSourceUnqueueBuffers(m_backgroundSource, 1, &buffer);
-		if (alGetError() != AL_NO_ERROR)
-			throw r2ExceptionRuntimeM("Goto hell");
-
-		std::cout << "Processed buffer " << buffer << std::endl;
-
-		std::vector<unsigned char> bufferData(SOUND_CHUNK_SIZE);
-		m_soundFileHandle->readChunk(SOUND_CHUNK_SIZE, &bufferData[0]);
-
-		alBufferData(buffer, m_soundFileHandle->getFormat(), &bufferData[0], SOUND_CHUNK_SIZE, m_soundFileHandle->m_sampleRate);
-
-		alSourceQueueBuffers(m_backgroundSource, 1, &buffer);
-	}
+	// update sound source
+	m_source->update();
 }
 
 void Lab::onRender(float dt, float interpolation) {
