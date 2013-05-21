@@ -23,6 +23,9 @@ private:
     std::shared_ptr<Mesh> m_mesh;
     std::map<std::string, Material> m_materialLibrary;
 
+	float m_modelOrientation;
+	glm::mat4 m_modelMatrix;
+
     float m_cameraPolarAngle;
     Camera m_camera;
 };
@@ -52,7 +55,8 @@ int main(int argc, char* argv[]) {
 }
 
 Lab::Lab()
-    : m_cameraPolarAngle(0.0f) {
+    : m_cameraPolarAngle(0.0f)
+	, m_modelOrientation(0.0f) {
     // set state
     GLCheck(glEnable(GL_DEPTH_TEST));
     GLCheck(glDepthFunc(GL_LESS));
@@ -98,43 +102,41 @@ Lab::Lab()
     m_camera.setFacing(glm::vec3(0.0f, 0.0f, -1.0f));
     m_camera.setPosition(glm::vec3(0.0f, 0.0f, 25.0f));
 
-    // setup a directional light
+    // setup ambient and point light
     {
         glUseProgramState programBinding(m_program->getId());
 
-        GLint intensityUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_LightIntensity"));
+		GLint ambientIntensityUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_AmbientIntensity"));
+        GLint directionalIntensityUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_LightIntensity"));
 
-        GLCheck(glUniform4f(intensityUniform, 1.0f, 1.0f, 1.0f, 1.0f));
+		GLCheck(glUniform3f(ambientIntensityUniform, 0.2f, 0.2f, 0.2f));
+        GLCheck(glUniform3f(directionalIntensityUniform, 0.8f, 0.8f, 0.8f));
     }
 
+
+	// initialize OpenAL
 	if (!alutInit(NULL, NULL)) {
 		std::cerr << "Failed to initialize OpenAL" << std::endl;
 	}
 
-	ALenum alError;
-
 	// setup OpenAL buffers
 	alGenBuffers(1, &m_backgroundBuffer);
-	if ((alError = alGetError()) != AL_NO_ERROR) {
-		throw r2ExceptionRuntimeM("Failed to generate sound buffer");
-	}
 
-	// load the wav
+	m_backgroundBuffer = alutCreateBufferFromFile("resources/sounds/wind-howl-01.wav");
 	
-	// set the buffer data
-	//alBufferData(m_backgroundBuffer
-
-	// unload the wav
-
 	// generate a source depending on the buffer
-	//alGenSources(1, &m_backgroundSource);
-	//alSourcei(m_backgroundSource, AL_BUFFER, m_backgroundBuffer);
+	alGenSources(1, &m_backgroundSource);
+	alSourcei(m_backgroundSource, AL_BUFFER, m_backgroundBuffer);
+	alSourcei(m_backgroundSource, AL_LOOPING, AL_TRUE);
 
+	alSourcePlay(m_backgroundSource);
 }
 
 Lab::~Lab() {
-	//alDeleteSources(1, &m_backgroundSource);
-	//alDeleteBuffers(1, &m_backgroundBuffer);
+	alSourceStop(m_backgroundSource);
+
+	alDeleteSources(1, &m_backgroundSource);
+	alDeleteBuffers(1, &m_backgroundBuffer);
 
 	alutExit();
 }
@@ -155,6 +157,16 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
     m_camera.setPosition(cameraPosition);
     m_camera.setFacing(cameraOrientation);
     m_camera.commit();
+
+	// rotate the box at a constant speed
+	m_modelOrientation += M_PI * 0.1f * dt;
+	m_modelMatrix = glm::mat4(cos(m_modelOrientation),  0, sin(m_modelOrientation), 0,
+							  0,						1, 0,						0,
+							  -sin(m_modelOrientation), 0, cos(m_modelOrientation), 0,
+							  0,						0, 0,						1);
+
+	// set the OpenAL listener by the camera
+	alListener3f(AL_POSITION, cameraPosition.x, cameraPosition.y, cameraPosition.z);
 }
 
 void Lab::onRender(float dt, float interpolation) {
@@ -166,27 +178,30 @@ void Lab::onRender(float dt, float interpolation) {
         const glm::mat4& view = m_camera.getView();
         const glm::mat4& projection = m_camera.getProjection();
 
+		glm::mat4 viewWorld = view * m_modelMatrix;
+		glm::mat3 normalViewWorld = glm::transpose(glm::inverse(glm::mat3(viewWorld)));
+		glm::mat3 normalView = glm::transpose(glm::inverse(glm::mat3(view)));
+
         // pass the matrices to the shader
         GLint projectionUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_Projection"));
         GLint viewWorldUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_ViewWorld"));
         GLint normalViewWorldUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_NormalViewWorld"));
         
         GLCheck(glUniformMatrix4fv(projectionUniform, 1, GL_FALSE, &projection[0][0]));
-        GLCheck(glUniformMatrix4fv(viewWorldUniform, 1, GL_FALSE, &view[0][0]));
-        GLCheck(glUniformMatrix4fv(normalViewWorldUniform, 1, GL_FALSE, &view[0][0]));
+        GLCheck(glUniformMatrix4fv(viewWorldUniform, 1, GL_FALSE, &viewWorld[0][0]));
+        GLCheck(glUniformMatrix3fv(normalViewWorldUniform, 1, GL_FALSE, &normalViewWorld[0][0]));
 
-        // transform the light direction
-        glm::vec4 lightDirection(0.5f, 0.0f, -1.0f, 0.0f);
-        lightDirection = view * lightDirection;
-        lightDirection = -glm::normalize(lightDirection);
+        // transform the point light position to view space
+        glm::vec4 lightPosition(0.0f, 2.0f, -2.0f, 1.0f);
+        lightPosition = view * lightPosition;
 
-        GLint lightDirectionUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_LightDirection"));
-        GLCheck(glUniform4fv(lightDirectionUniform, 1, &lightDirection[0]));
+        GLint lightPositionUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_LightPositionV"));
+        GLCheck(glUniform4fv(lightPositionUniform, 1, &lightPosition[0]));
 
         // render the mesh
         glBindVertexArrayState vaoBinding(m_mesh->m_groups["default"]->m_VAO.getId());
         GLCheck(glDrawArrays(GL_TRIANGLES, 0, m_mesh->m_groups["default"]->m_vertexCount));
-    }
+	}
 
     glfwSwapBuffers();
 }

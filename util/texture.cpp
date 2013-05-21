@@ -1,5 +1,7 @@
 #include "texture.hpp"
 #include "utility.hpp"
+#include <sstream>
+#include <r2tk/r2-exception.hpp>
 #include <IL/il.h>
 
 GLuint Texture::s_nextUnitId = 1;
@@ -22,8 +24,7 @@ std::shared_ptr<Texture> Texture::loadTexture(const std::string& filename) {
     ilGenImages(1, &imageName);
     ilBindImage(imageName);
     if (!ilLoadImage(filename.c_str())) {
-        std::cerr << "ERROR: Failed to load texture image: " << filename << std::endl;
-        return std::shared_ptr<Texture>();
+		throw r2ExceptionIOM("Failed to load texture image: " + filename);
     }
 
     GLCheck(glBindTexture(GL_TEXTURE_2D, texture->getId()));
@@ -35,8 +36,10 @@ std::shared_ptr<Texture> Texture::loadTexture(const std::string& filename) {
     GLenum format = (imageBpp == 3) ? GL_RGB : GL_RGBA;
 
     if (imageBpp != 3 && imageBpp != 4) {
-        std::cerr << "ERROR: Texture image in bad format (bytes per pixel = " << imageBpp << "): " << filename << std::endl;
-        return std::shared_ptr<Texture>();
+		std::stringstream ss;
+		ss << "Texture image in bad format (bytes per pixel = " << imageBpp << "): " << filename;
+
+		throw r2ExceptionIOM(ss.str());
     }
 
     GLCheck(glTexImage2D(GL_TEXTURE_2D,
