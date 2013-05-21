@@ -1,6 +1,6 @@
 #include "shader.hpp"
+#include <r2tk/r2-exception.hpp>
 #include <memory>
-#include <iostream>
 #include <fstream>
 #include <cstdio>
 
@@ -24,7 +24,7 @@ Shader::Shader(const char* source, GLenum shaderType) {
             log = logBuffer.get();
         }
 
-        std::cerr << "ERROR: Failed to compile shader: " << log << std::endl;
+		throw r2ExceptionIOM("Failed to compile shader: " + log);
     }
 }
 
@@ -35,11 +35,8 @@ Shader::~Shader() {
 std::shared_ptr<Shader> Shader::loadShader(const std::string& filename, GLenum shaderType) {
 	std::ifstream file(filename.c_str());
 
-	std::cout << "Hello" << std::endl;
-
 	if (!file.is_open()) {
-        std::cerr << "ERROR: Failed to open shader: " << filename << std::endl;
-        return std::shared_ptr<Shader>();
+        throw r2ExceptionIOM("Failed to open shader: " + filename);
     }
 
 	std::string source;
@@ -49,8 +46,6 @@ std::shared_ptr<Shader> Shader::loadShader(const std::string& filename, GLenum s
 
 		source += line + "\n";
 	}
-
-	std::cout << source << std::endl;
 
 	return std::shared_ptr<Shader>(new Shader(source.c_str(), shaderType));
 }

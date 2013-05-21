@@ -1,13 +1,12 @@
 #include "material.hpp"
-#include <iostream>
+#include <r2tk/r2-exception.hpp>
 #include <fstream>
 #include <sstream>
 
 std::map<std::string, Material> Material::loadMTL(const std::string& libraryFile) {
     std::ifstream fs(libraryFile.c_str(), std::ifstream::in);
     if (!fs.is_open()) {
-        std::cerr << "ERROR: Failed to open .mtl file: " << libraryFile << std::endl;
-        return std::map<std::string, Material>();
+        throw r2ExceptionIOM("Failed to open .mtl file: " + libraryFile);
     }
 
     

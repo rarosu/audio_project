@@ -1,5 +1,5 @@
 #include "mesh.hpp"
-#include <iostream>
+#include <r2tk/r2-exception.hpp>
 #include <fstream>
 #include <sstream>
 #include <limits>
@@ -18,8 +18,7 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
 
     std::ifstream fs(filename.c_str(), std::ifstream::in);
     if (!fs.is_open()) {
-        std::cerr << "ERROR: Failed to open .obj file: " << filename << std::endl;
-        return std::shared_ptr<Mesh>();
+		throw r2ExceptionIOM("Failed to open .obj file: " + filename);
     }
 
     std::vector<glm::vec4> vertexList;
@@ -57,8 +56,7 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
             v.w = 1.0f;
 
             if (lineStream.fail() || lineStream.bad()) {
-                std::cerr << "ERROR: Failed to parse vertex in .obj file: " << filename << std::endl;
-                return std::shared_ptr<Mesh>();
+				throw r2ExceptionIOM("Failed to parse vertex in .obj file: " + filename);
             }
 
             vertexList.push_back(v);
@@ -71,8 +69,7 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
             n.w = 0.0f;
 
             if (lineStream.fail() || lineStream.bad()) {
-                std::cerr << "ERROR: Failed to parse vertex in .obj file: " << filename << std::endl;
-                return std::shared_ptr<Mesh>();
+				throw r2ExceptionIOM("Failed to parse normal in .obj file: " + filename);
             }
 
             normalList.push_back(n);
@@ -82,8 +79,7 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
             lineStream >> t.y;
 
             if (lineStream.fail() || lineStream.bad()) {
-                std::cerr << "ERROR: Failed to parse texture coordinate in .obj file: " << filename << std::endl;
-                return std::shared_ptr<Mesh>();
+				throw r2ExceptionIOM("Failed to parse texture coordinate in .obj file: " + filename);
             }
 
             texCoordList.push_back(t);
@@ -100,8 +96,7 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
                 lineStream >> n;
 
                 if (lineStream.fail() || lineStream.bad()) {
-                    std::cerr << "ERROR: Failed to parse face in .obj file: " << filename << std::endl;
-                    return std::shared_ptr<Mesh>();
+                    throw r2ExceptionIOM("Failed to parse face in .obj file: " + filename);
                 }
 
                 v = v - 1;
@@ -120,13 +115,6 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
     // create the buffers
     for (std::map<std::string, GroupData>::iterator it = groupData.begin(); it != groupData.end(); it++)
     {
-        std::cout << "Group: " << it->first << std::endl;
-        std::cout << "Material Name = " << it->second.m_material << std::endl;
-        std::cout << "Vertex Count = " << it->second.m_vertices.size() << std::endl;
-        std::cout << "Normal Count = " << it->second.m_normals.size() << std::endl;
-        std::cout << "TexCoord Count = " << it->second.m_texCoords.size() << std::endl;
-        std::cout << std::endl;
-
         // skip if empty group
         if (it->second.m_vertices.size() == 0)
             continue;
@@ -135,8 +123,7 @@ std::shared_ptr<Mesh> Mesh::loadOBJ(const std::string& filename) {
         bool sizeCheck = it->second.m_vertices.size() == it->second.m_normals.size() &&
                          it->second.m_vertices.size() == it->second.m_texCoords.size();
         if (!sizeCheck) {
-            std::cerr << "ERROR: Invalid number of vertices/normals/texture coordinates in .obj file: " << filename << std::endl;
-            return std::shared_ptr<Mesh>();
+			throw r2ExceptionIOM("Invalid number of vertices/normals/texture coordinates in .obj file: " + filename);
         }
 
         std::shared_ptr<Mesh::Group> g(new Mesh::Group);
