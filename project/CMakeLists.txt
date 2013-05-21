@@ -49,5 +49,9 @@ add_executable(project ${HEADERS} ${SOURCES})
 target_link_libraries(project ${LIBRARIES})
 
 # Copy resources on build
-add_custom_target(Resources ALL
+add_custom_target(project_resources ALL
     ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources ${CMAKE_CURRENT_BINARY_DIR}/resources)
+
+# Copy external binaries on build
+add_custom_target(project_externals ALL
+    ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/external/bin ${project_BINARY_DIR})
