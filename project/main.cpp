@@ -15,8 +15,6 @@ public:
     void onRender(float dt, float interpolation);
     void onResize(int width, int height);
 private:
-	ALCdevice* m_ALdevice;
-	ALCcontext* m_ALcontext;
 	ALuint m_backgroundBuffer;
 	ALuint m_backgroundSource;
 
