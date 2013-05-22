@@ -8,9 +8,7 @@
 #include <memory>
 #include <r2tk\r2-data-types.hpp>
 #include "sound.hpp"
-
-const int SOUND_CHUNK_COUNT = 2;
-const int SOUND_CHUNK_SIZE = 44100 * 3;
+#include "entity.hpp"
 
 class Lab : public LabTemplate {
 public:
@@ -24,13 +22,12 @@ private:
 	std::shared_ptr<WAVHandle> m_sound;
 	std::shared_ptr<SoundSource> m_source;
 
-    std::shared_ptr<Program> m_program;
-    std::shared_ptr<Texture> m_texture;
-    std::shared_ptr<Mesh> m_mesh;
-    std::map<std::string, Material> m_materialLibrary;
+	PointLight m_pointLight;
+	glm::vec3 m_ambientLight;
 
-	float m_modelOrientation;
-	glm::mat4 m_modelMatrix;
+	std::shared_ptr<Entity> m_boxEntity;
+	float m_boxModelOrientation;
+	glm::mat4 m_boxModelMatrix;
 
 	float m_cameraOrientation;
     glm::vec3 m_cameraPosition;
@@ -66,7 +63,8 @@ int main(int argc, char* argv[]) {
 Lab::Lab()
     : m_cameraOrientation(-M_PI * 0.5f)
 	, m_cameraPosition(0.0f, 0.0f, 10.0f)
-	, m_modelOrientation(0.0f) {
+	, m_boxModelOrientation(0.0f) {
+
     // set state
     GLCheck(glEnable(GL_DEPTH_TEST));
     GLCheck(glDepthFunc(GL_LESS));
@@ -74,55 +72,18 @@ Lab::Lab()
     GLCheck(glCullFace(GL_BACK));
     GLCheck(glFrontFace(GL_CCW));
 
-    // load the mesh
-    m_mesh = Mesh::loadOBJ("resources/meshes/crate.obj");
-    m_materialLibrary = Material::loadMTL("resources/meshes/" + m_mesh->m_mtlLibrary);
+	// load entities
+	m_boxEntity = std::shared_ptr<Entity>(new Entity("resources/meshes/crate.obj"));
 
-    // load the shaders
-    std::vector<std::shared_ptr<Shader> > shaders;
-
-    shaders.push_back(Shader::loadShader("resources/shaders/basic.vs", GL_VERTEX_SHADER));
-    shaders.push_back(Shader::loadShader("resources/shaders/basic.fs", GL_FRAGMENT_SHADER));
-
-    m_program = std::shared_ptr<Program>(new Program(shaders));
-
-    // load and bind the texture
-    m_texture = Texture::loadTexture("resources/textures/" + m_materialLibrary[m_mesh->m_groups["default"]->m_material].m_mapKd);
-
-    {
-        glUseProgramState programBinding(m_program->getId());
-
-        GLint samplerUniform = GLCheck(glGetUniformLocation(m_program->getId(), "Texture"));
-        GLCheck(glUniform1i(samplerUniform, m_texture->getUnitId()));
-        GLCheck(glActiveTexture(GL_TEXTURE0 + m_texture->getUnitId()));
-        GLCheck(glBindTexture(GL_TEXTURE_2D, m_texture->getId()));
-
-        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
-        GLCheck(glGenerateMipmap(GL_TEXTURE_2D));
-        //GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-        //GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-        GLCheck(glBindSampler(m_texture->getUnitId(), m_texture->getSamplerId()));
-    }
+	// setup the lights
+	m_pointLight.m_intensity = glm::vec3(0.8, 0.8, 0.8);
+	m_pointLight.m_position = glm::vec4(0.0f, 3.0, 6.0, 1.0);
+	m_ambientLight = glm::vec3(0.2, 0.2, 0.2);
 
     // setup the camera
     m_camera.setUp(glm::vec3(0.0f, 1.0f, 0.0f));
     m_camera.setFacing(glm::vec3(0.0f, 0.0f, -1.0f));
     m_camera.setPosition(glm::vec3(0.0f, 0.0f, 25.0f));
-
-    // setup ambient and point light
-    {
-        glUseProgramState programBinding(m_program->getId());
-
-		GLint ambientIntensityUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_AmbientIntensity"));
-        GLint directionalIntensityUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_LightIntensity"));
-
-		GLCheck(glUniform3f(ambientIntensityUniform, 0.2f, 0.2f, 0.2f));
-        GLCheck(glUniform3f(directionalIntensityUniform, 0.8f, 0.8f, 0.8f));
-    }
-
 
 	// initialize OpenAL
 	if (!alutInit(NULL, NULL)) {
@@ -175,11 +136,12 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 	alListener3f(AL_POSITION, m_cameraPosition.x, m_cameraPosition.y, m_cameraPosition.z);
 
 	// rotate the box at a constant speed
-	m_modelOrientation += M_PI * 0.1f * dt;
-	m_modelMatrix = glm::mat4(cos(m_modelOrientation),  0, sin(m_modelOrientation), 0,
-							  0,						1, 0,						0,
-							  -sin(m_modelOrientation), 0, cos(m_modelOrientation), 0,
-							  0,						0, 0,						1);
+	m_boxModelOrientation += M_PI * 0.1f * dt;
+	m_boxModelMatrix = glm::mat4(cos(m_boxModelOrientation),  0, sin(m_boxModelOrientation), 0,
+								 0,						   1, 0,						     0,
+								 -sin(m_boxModelOrientation), 0, cos(m_boxModelOrientation), 0,
+								 0,						   0, 0,						     1);
+	m_boxEntity->setModelMatrix(m_boxModelMatrix);
 
 	// update sound source
 	m_source->update();
@@ -188,36 +150,7 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 void Lab::onRender(float dt, float interpolation) {
     GLCheck(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-    {
-        glUseProgramState programBinding(m_program->getId());
-        
-        const glm::mat4& view = m_camera.getView();
-        const glm::mat4& projection = m_camera.getProjection();
-
-		glm::mat4 viewWorld = view * m_modelMatrix;
-		glm::mat3 normalViewWorld = glm::transpose(glm::inverse(glm::mat3(viewWorld)));
-		glm::mat3 normalView = glm::transpose(glm::inverse(glm::mat3(view)));
-
-        // pass the matrices to the shader
-        GLint projectionUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_Projection"));
-        GLint viewWorldUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_ViewWorld"));
-        GLint normalViewWorldUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_NormalViewWorld"));
-        
-        GLCheck(glUniformMatrix4fv(projectionUniform, 1, GL_FALSE, &projection[0][0]));
-        GLCheck(glUniformMatrix4fv(viewWorldUniform, 1, GL_FALSE, &viewWorld[0][0]));
-        GLCheck(glUniformMatrix3fv(normalViewWorldUniform, 1, GL_FALSE, &normalViewWorld[0][0]));
-
-        // transform the point light position to view space
-        glm::vec4 lightPosition(0.0f, 2.0f, -2.0f, 1.0f);
-        lightPosition = view * lightPosition;
-
-        GLint lightPositionUniform = GLCheck(glGetUniformLocation(m_program->getId(), "g_LightPositionV"));
-        GLCheck(glUniform4fv(lightPositionUniform, 1, &lightPosition[0]));
-
-        // render the mesh
-        glBindVertexArrayState vaoBinding(m_mesh->m_groups["default"]->m_VAO.getId());
-        GLCheck(glDrawArrays(GL_TRIANGLES, 0, m_mesh->m_groups["default"]->m_vertexCount));
-	}
+	m_boxEntity->render(m_camera, m_pointLight, m_ambientLight);
 
     glfwSwapBuffers();
 }
