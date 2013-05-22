@@ -157,6 +157,15 @@ void SoundSource::stop() {
 }
 
 void SoundSource::setLooping(bool looping) {
+	//       .
+	//      ":"
+	//    ___:____     |"\/"|
+	//  ,'        `.    \  /
+	//  |  O        \___/  |
+	//~^~^~^~^~^~^~^~^~^~^~^~^~
+	// Whale hi there, water you up to?
+
+	alSourcei(m_id, AL_LOOPING, looping);
 }
 
 void SoundSource::loadNextChunk(ALuint buffer) {

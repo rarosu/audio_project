@@ -55,6 +55,8 @@ public:
 	void play();
 	void stop();
 	void setLooping(bool looping);
+
+	ALuint getId() const { return m_id; }
 private:
 	ALuint m_id;
 	glm::vec3 m_position;

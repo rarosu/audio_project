@@ -130,12 +130,12 @@ Lab::Lab()
 	}
 
 	m_sound = std::shared_ptr<WAVHandle>(new WAVHandle("resources/sounds/wind-howl-01.wav"));
-	m_source = std::shared_ptr<SoundSource>(new SoundSource(m_sound, glm::vec3(0.0f, 0.0f, 0.0f), true));
+	m_source = std::shared_ptr<SoundSource>(new SoundSource(m_sound, glm::vec3(0.0f, 0.0f, 0.0f), false));
 	m_source->play();
 }
 
 Lab::~Lab() {	
-	// TODO: Whale, whale, whale, what have we here?
+	// Whale, whale, whale, what have we here?
 	//
 	//    ___\|/__
 	//   /^  >    \/|
