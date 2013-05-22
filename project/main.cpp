@@ -19,6 +19,7 @@ public:
     void onRender(float dt, float interpolation);
     void onResize(int width, int height);
 private:
+	Listener m_listener;
 	std::shared_ptr<WAVHandle> m_sound;
 	std::shared_ptr<SoundSource> m_source;
 
@@ -35,6 +36,8 @@ private:
 	float m_cameraOrientation;
     glm::vec3 m_cameraPosition;
     Camera m_camera;
+
+	glm::vec3 getCameraOrientation(float orientation) const;
 };
 
 int main(int argc, char* argv[]) {
@@ -91,7 +94,7 @@ Lab::Lab()
 
     // setup the camera
     m_camera.setUp(glm::vec3(0.0f, 1.0f, 0.0f));
-    m_camera.setFacing(glm::vec3(0.0f, 0.0f, -1.0f));
+	m_camera.setFacing(getCameraOrientation(m_cameraOrientation));
     m_camera.setPosition(glm::vec3(0.0f, 0.0f, 25.0f));
 
 	// initialize OpenAL
@@ -99,8 +102,10 @@ Lab::Lab()
 		std::cerr << "Failed to initialize OpenAL" << std::endl;
 	}
 
+	m_listener.m_position = m_cameraPosition;
+	m_listener.m_facing = getCameraOrientation(m_cameraOrientation);
 	m_sound = std::shared_ptr<WAVHandle>(new WAVHandle("resources/sounds/wind-howl-01.wav"));
-	m_source = std::shared_ptr<SoundSource>(new SoundSource(m_sound, glm::vec3(0.0f, 0.0f, 0.0f), false));
+	m_source = std::shared_ptr<SoundSource>(new SoundSource(m_sound, glm::vec3(0.0f, 0.0f, 0.0f), true, m_listener));
 	m_source->play();
 }
 
@@ -120,10 +125,7 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 	if (currentInput.m_keyboard.m_keys[GLFW_KEY_LEFT] || currentInput.m_keyboard.m_keys['A'])
 		m_cameraOrientation -= M_PI * dt;
 
-	glm::vec3 cameraOrientation;
-	cameraOrientation.x = cos(m_cameraOrientation);
-	cameraOrientation.y = 0.0f;
-	cameraOrientation.z = sin(m_cameraOrientation);
+	glm::vec3 cameraOrientation = getCameraOrientation(m_cameraOrientation);
 
 	if (currentInput.m_keyboard.m_keys[GLFW_KEY_UP] || currentInput.m_keyboard.m_keys['W'])
 		m_cameraPosition += cameraOrientation * 10.0f * dt;
@@ -141,8 +143,9 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 	m_camera.setFacing(cameraOrientation);
 	m_camera.commit();
 
-	// set the OpenAL listener by the camera
-	alListener3f(AL_POSITION, m_cameraPosition.x, m_cameraPosition.y, m_cameraPosition.z);
+	// set the listener by the camera
+	m_listener.m_position = m_cameraPosition;
+	m_listener.m_facing = cameraOrientation;
 
 	// rotate the box at a constant speed
 	m_boxModelOrientation += M_PI * 0.1f * dt;
@@ -154,6 +157,15 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 
 	// update sound source
 	m_source->update();
+}
+
+glm::vec3 Lab::getCameraOrientation(float orientation) const {
+	glm::vec3 cameraOrientation;
+	cameraOrientation.x = cos(m_cameraOrientation);
+	cameraOrientation.y = 0.0f;
+	cameraOrientation.z = sin(m_cameraOrientation);
+
+	return cameraOrientation;
 }
 
 void Lab::onRender(float dt, float interpolation) {

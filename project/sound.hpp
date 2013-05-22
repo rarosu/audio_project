@@ -10,10 +10,20 @@
 #include <glm/glm.hpp>
 
 /** Forward declarations */
+struct Listener;
 class WAVHandle;
 class SoundSource;
 class SoundBuffer;
 
+/** Stores the data describing a listener in the world */
+struct Listener {
+	glm::vec3 m_position;
+	glm::vec3 m_facing;
+
+	glm::vec3 getRight() const;
+	glm::vec3 getLeft() const;
+	glm::vec3 getFacing() const { return m_facing; }
+};
 
 /** Reads and stores WAV file data */
 class WAVHandle {
@@ -26,7 +36,7 @@ public:
 	unsigned int getBytesPerSample() const { return m_bytesPerSample; }
 	size_t size() const { return m_data.size(); }
 
-	int getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char*& data); 
+	int getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char* data); 
 private:
 	unsigned int m_channelCount;
 	unsigned int m_sampleRate;
@@ -48,7 +58,7 @@ private:
 /** Abstracts the OpenAL concept of a source. It also implements double buffering. */
 class SoundSource {
 public:
-	SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3& position, bool looping);
+	SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3& position, bool looping, const Listener& listener);
 	~SoundSource() throw();
 
 	void update();
@@ -58,14 +68,24 @@ public:
 
 	ALuint getId() const { return m_id; }
 private:
+	struct PanVolume {
+		float left;
+		float right;
+	};
+
 	ALuint m_id;
 	glm::vec3 m_position;
-	std::shared_ptr<WAVHandle> m_soundHandle;
-	SoundBuffer m_buffers[2];
 	bool m_looping;
+
+	const Listener& m_listener;
+	std::shared_ptr<WAVHandle> m_soundHandle;
+	
+	SoundBuffer m_buffers[2];
 	unsigned int m_streamPosition;
 
+
 	void loadNextChunk(ALuint buffer);
+	PanVolume constantPower(float position) const;
 
 	static const int CHUNK_SIZE;
 };
