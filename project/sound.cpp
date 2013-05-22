@@ -169,7 +169,7 @@ void SoundSource::setLooping(bool looping) {
 }
 
 void SoundSource::loadNextChunk(ALuint buffer) {
-	std::cout << "Loading new chunk for buffer " << buffer << std::endl;
+	//std::cout << "Loading new chunk for buffer " << buffer << std::endl;
 
 	unsigned char* chunkData;
 	int bytesRead = m_soundHandle->getChunk(m_streamPosition, CHUNK_SIZE, chunkData);

@@ -3,7 +3,7 @@
 
 Entity::Entity(const std::string& objModel) {
 	// load the mesh
-    m_mesh = Mesh::loadOBJ("resources/meshes/crate.obj");
+    m_mesh = Mesh::loadOBJ(objModel);
     m_materialLibrary = Material::loadMTL("resources/meshes/" + m_mesh->m_mtlLibrary);
 
 	// load the shaders
@@ -28,8 +28,8 @@ Entity::Entity(const std::string& objModel) {
         GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_MAG_FILTER, GL_LINEAR));
         GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
         GLCheck(glGenerateMipmap(GL_TEXTURE_2D));
-        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_WRAP_S, GL_REPEAT));
+        GLCheck(glSamplerParameteri(m_texture->getSamplerId(), GL_TEXTURE_WRAP_T, GL_REPEAT));
         GLCheck(glBindSampler(m_texture->getUnitId(), m_texture->getSamplerId()));
     }
 }

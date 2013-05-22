@@ -25,6 +25,9 @@ private:
 	PointLight m_pointLight;
 	glm::vec3 m_ambientLight;
 
+	std::shared_ptr<Entity> m_planeEntity;
+	glm::mat4 m_planeModelMatrix;
+
 	std::shared_ptr<Entity> m_boxEntity;
 	float m_boxModelOrientation;
 	glm::mat4 m_boxModelMatrix;
@@ -73,6 +76,12 @@ Lab::Lab()
     GLCheck(glFrontFace(GL_CCW));
 
 	// load entities
+	m_planeModelMatrix = glm::mat4(1, 0, 0, 0,
+								   0, 1, 0, 0,
+								   0, 0, 1, 0,
+								   0, -3, 0, 1);
+	m_planeEntity = std::shared_ptr<Entity>(new Entity("resources/meshes/cobblestone-plane.obj"));
+	m_planeEntity->setModelMatrix(m_planeModelMatrix);
 	m_boxEntity = std::shared_ptr<Entity>(new Entity("resources/meshes/crate.obj"));
 
 	// setup the lights
@@ -150,6 +159,7 @@ void Lab::onUpdate(float dt, const InputState& currentInput, const InputState& p
 void Lab::onRender(float dt, float interpolation) {
     GLCheck(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
+	m_planeEntity->render(m_camera, m_pointLight, m_ambientLight);
 	m_boxEntity->render(m_camera, m_pointLight, m_ambientLight);
 
     glfwSwapBuffers();
