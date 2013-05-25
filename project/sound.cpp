@@ -211,8 +211,8 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 		PanVolume vol = constantPower(dotRight);
 		float distanceFactor = 1.0f / (1.0f + 0.005 * distanceSquared);
 
-		right *= vol.right * distanceFactor;
-		left *= vol.left * distanceFactor;
+		right *= vol.right * distanceFactor, 0.2f;
+		left *= vol.left * distanceFactor, 0.2f;
 
 		sample->m_left = (short) (left * MAX_SHORT);
 		sample->m_right = (short) (right * MAX_SHORT);

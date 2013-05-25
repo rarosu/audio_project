@@ -9,6 +9,7 @@
 #include <r2tk\r2-data-types.hpp>
 #include "sound.hpp"
 #include "entity.hpp"
+#include <fftw3.h>
 
 class Lab : public LabTemplate {
 public:
@@ -70,6 +71,20 @@ Lab::Lab()
     : m_cameraOrientation(-M_PI * 0.5f)
 	, m_cameraPosition(0.0f, 0.0f, 10.0f)
 	, m_boxModelOrientation(0.0f) {
+
+	// TEST FFTW
+	{
+		const int N = 1024;
+		fftw_complex* in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+		fftw_complex* out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
+
+		fftw_plan p = fftw_plan_dft_1d(N, &in[0], &out[0], FFTW_FORWARD, FFTW_ESTIMATE);
+		fftw_execute(p);
+
+		fftw_destroy_plan(p);
+		fftw_free(in);
+		fftw_free(out);
+	}
 
     // set state
     GLCheck(glEnable(GL_DEPTH_TEST));
