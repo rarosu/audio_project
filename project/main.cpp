@@ -72,20 +72,6 @@ Lab::Lab()
 	, m_cameraPosition(0.0f, 0.0f, 10.0f)
 	, m_boxModelOrientation(0.0f) {
 
-	// TEST FFTW
-	{
-		const int N = 1024;
-		fftw_complex* in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-		fftw_complex* out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-
-		fftw_plan p = fftw_plan_dft_1d(N, &in[0], &out[0], FFTW_FORWARD, FFTW_ESTIMATE);
-		fftw_execute(p);
-
-		fftw_destroy_plan(p);
-		fftw_free(in);
-		fftw_free(out);
-	}
-
     // set state
     GLCheck(glEnable(GL_DEPTH_TEST));
     GLCheck(glDepthFunc(GL_LESS));
@@ -121,6 +107,11 @@ Lab::Lab()
 	m_listener.m_facing = getCameraOrientation(m_cameraOrientation);
 	m_sound = std::shared_ptr<WAVHandle>(new WAVHandle("resources/sounds/wind-howl-01.wav"));
 	m_source = std::shared_ptr<SoundSource>(new SoundSource(m_sound, glm::vec3(0.0f, 0.0f, 0.0f), true, m_listener));
+	
+	std::vector<double> impulse = std::move(ConvolutionFilter::generateEchoImpulse(44100, 1.0, 0.6));
+	std::shared_ptr<Filter> filter = std::shared_ptr<Filter>(new ConvolutionFilter(impulse));
+	
+	m_source->addFilter(filter);
 	m_source->play();
 }
 

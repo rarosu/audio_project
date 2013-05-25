@@ -8,23 +8,13 @@
 #include <AL/alc.h>
 #include <AL/alut.h>
 #include <glm/glm.hpp>
+#include "sound-common.hpp"
 #include "filter.hpp"
 
 /** Forward declarations */
-struct Listener;
 class WAVHandle;
 class SoundSource;
 class SoundBuffer;
-
-/** Stores the data describing a listener in the world */
-struct Listener {
-	glm::vec3 m_position;
-	glm::vec3 m_facing;
-
-	glm::vec3 getRight() const;
-	glm::vec3 getLeft() const;
-	glm::vec3 getFacing() const { return m_facing; }
-};
 
 /** Reads and stores WAV file data */
 class WAVHandle {
@@ -68,13 +58,10 @@ public:
 	void stop();
 	void setLooping(bool looping);
 
+	void addFilter(std::shared_ptr<Filter> filter);
+
 	ALuint getId() const { return m_id; }
 private:
-	struct PanVolume {
-		float left;
-		float right;
-	};
-
 	ALuint m_id;
 	glm::vec3 m_position;
 	bool m_looping;
@@ -85,9 +72,12 @@ private:
 	SoundBuffer m_buffers[2];
 	unsigned int m_streamPosition;
 
+	StereoPanningFilter m_stereoPanningFilter;
+	std::vector<std::shared_ptr<Filter> > m_filters;
+
 
 	void loadNextChunk(ALuint buffer);
-	PanVolume constantPower(float position) const;
+
 
 	static const int CHUNK_SIZE;
 };

@@ -2,6 +2,9 @@
 #define FILTER_HPP
 
 #include <vector>
+#include <glm\glm.hpp>
+#include <fftw3.h>
+#include "sound-common.hpp"
 
 struct Channels {
 	std::vector<double> m_right;
@@ -15,9 +18,28 @@ public:
 };
 
 
+/** This filter is NOT LINEAR and should be applied last always */
+class StereoPanningFilter : public Filter {
+public:
+	StereoPanningFilter(const Listener& listener, const glm::vec3& position);
+
+	Channels apply(const std::vector<double>& right, const std::vector<double>& left);
+private:
+	struct PanVolume {
+		double left;
+		double right;
+	};
+
+	const glm::vec3& m_position;
+	const Listener& m_listener;
+
+	PanVolume constantPower(double position) const;
+};
+
+
 /** Handle a FFTW array */
 template <typename T>
-struct FFTWArray {
+class FFTWArray {
 public:
 	FFTWArray(size_t N) : m_size(N) { m_array = (T*) fftw_malloc(sizeof(T) * N); }
 	~FFTWArray() throw() { fftw_free(m_array); }
@@ -38,8 +60,12 @@ public:
 	ConvolutionFilter(std::vector<double>& impulseTime);
 
 	Channels apply(const std::vector<double>& right, const std::vector<double>& left);
+
+	static std::vector<double> generateEchoImpulse(int sampleRate, double delay, double decay);
 private:
 	FFTWArray<fftw_complex> m_impulseFreq;
+
+	std::vector<double> applyImpulse(std::vector<double> samplesTime);
 };
 
 #endif

@@ -43,8 +43,8 @@ link_directories("${CMAKE_BINARY_DIR}/r2tk")
 # Compile
 #set(LIBRARIES ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${GLFW_LIBRARIES} ${IL_LIBRARIES} r2tk util)
 set(LIBRARIES ${OPENAL_LIBRARIES} ${FFTW_LIBRARIES} r2tk util)
-set(HEADERS sound.hpp entity.hpp filter.hpp)
-set(SOURCES main.cpp sound.cpp entity.cpp filter.cpp)
+set(HEADERS sound.hpp entity.hpp filter.hpp sound-common.hpp)
+set(SOURCES main.cpp sound.cpp entity.cpp filter.cpp sound-common.cpp)
 add_executable(project ${HEADERS} ${SOURCES})
 
 # Link

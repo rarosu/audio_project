@@ -3,14 +3,6 @@
 #include <fstream>
 #include <r2tk\r2-exception.hpp>
 
-glm::vec3 Listener::getRight() const {
-	return glm::cross(m_facing, glm::vec3(0, 1, 0));
-}
-
-glm::vec3 Listener::getLeft() const {
-	return -getRight();
-}
-
 WAVHandle::WAVHandle(const std::string& filepath) {
 	// read the file
 	std::ifstream file(filepath.c_str(), std::ios::binary);
@@ -114,7 +106,8 @@ SoundSource::SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3
 	, m_position(position) 
 	, m_looping(looping)
 	, m_streamPosition(0)
-	, m_listener(listener) {
+	, m_listener(listener)
+	, m_stereoPanningFilter(listener, m_position) {
 	alGenSources(1, &m_id);
 
 	for (int i = 0; i < 2; ++i) {
@@ -186,6 +179,10 @@ void SoundSource::setLooping(bool looping) {
 	alSourcei(m_id, AL_LOOPING, looping);
 }
 
+void SoundSource::addFilter(std::shared_ptr<Filter> filter) {
+	m_filters.push_back(filter);
+}
+
 void SoundSource::loadNextChunk(ALuint buffer) {
 	/** Defines a sample in a sound buffer */
 	struct Sample {
@@ -193,49 +190,42 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 		short m_right;
 	};
 	
+	// Load a chunk and normalize the samples into the range [-1, 1]
 	std::vector<unsigned char> chunkData = std::move(m_soundHandle->getChunk(m_streamPosition, CHUNK_SIZE));
 	std::vector<double> right(chunkData.size() / 4);
 	std::vector<double> left(chunkData.size() / 4);
 
 	const int MAX_SHORT = 32768;
 	for (int i = 0; i < chunkData.size(); i += 4) {
-		Sample* sample = (Sample*)&chunkData[i];
+		Sample sample = *(Sample*)&chunkData[i];
 
-		right[i / 4] = ((double)sample->m_right) / MAX_SHORT;
-		left[i / 4]  = ((double)sample->m_left) / MAX_SHORT;
+		right[i / 4] = ((double)sample.m_right) / MAX_SHORT;
+		left[i / 4]  = ((double)sample.m_left) / MAX_SHORT;
 	}
 
-	// Apply stereo panning to the newly loaded chunk before sending it to OpenAL
-	glm::vec3 displacement = m_position - m_listener.m_position;
-	glm::vec3 direction = displacement;
-	if (direction == glm::vec3(0,0,0))
-		direction = m_listener.m_facing;
-	direction = glm::normalize(direction);
+	// Apply generic linear filters
+	for (size_t i = 0; i < m_filters.size(); ++i) {
+		Channels result = m_filters[i]->apply(right, left);
+		right = result.m_right;
+		left = result.m_left;
+	}
 
-	float distanceSquared = glm::dot(displacement, displacement);
-	float dotRight = glm::dot(direction, m_listener.getRight());
-	float dotLeft = glm::dot(direction, m_listener.getLeft());
-	
+	// Apply stereo panning
+	Channels result = m_stereoPanningFilter.apply(right, left);
+	right = result.m_right;
+	left = result.m_left;
+
+	// Transform the samples back into the interval [-MAX_SHORT, MAX_SHORT - 1]
 	for (int i = 0; i < chunkData.size(); i += 4) {
 		Sample* sample = (Sample*)&chunkData[i];
-		
-		float left = (float)(sample->m_left) / MAX_SHORT;
-		float right = (float)(sample->m_right) / MAX_SHORT;
 
-		PanVolume vol = constantPower(dotRight);
-		float distanceFactor = 1.0f / (1.0f + 0.005 * distanceSquared);
-
-		right *= vol.right * distanceFactor, 0.2f;
-		left *= vol.left * distanceFactor, 0.2f;
-
-		sample->m_left = (short) (left * MAX_SHORT);
-		sample->m_right = (short) (right * MAX_SHORT);
-	}
-	
+		sample->m_right = (short) (right[i / 4] * MAX_SHORT);
+		sample->m_left = (short) (left[i / 4] * MAX_SHORT);
+	}	
 
 	// copy the buffer to OpenAL
-	/*if (chunkData.size() > 0) {
-		alBufferData(buffer, m_soundHandle->getFormat(), chunkData, bytesRead, m_soundHandle->getSampleRate());
+	if (chunkData.size() > 0) {
+		alBufferData(buffer, m_soundHandle->getFormat(), &chunkData[0], chunkData.size(), m_soundHandle->getSampleRate());
 		if (alGetError() != AL_NO_ERROR)
 			throw r2ExceptionRuntimeM("Failed to assign buffer data");
 
@@ -243,19 +233,7 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 		if (alGetError() != AL_NO_ERROR)
 			throw r2ExceptionRuntimeM("Failed to queue buffer");
 
-		m_streamPosition += bytesRead;
-	}*/
+		m_streamPosition += chunkData.size();
+	}
 }
 
-SoundSource::PanVolume SoundSource::constantPower(float position) const {
-	PanVolume result;
-	const float SQRT2INV = 0.707107f;
-	const float PIOVER4 = 0.785398f;
-	
-	float angle = position * PIOVER4;
-
-	result.left = SQRT2INV * (cos(angle) - sin(angle));
-	result.right = SQRT2INV * (cos(angle) + sin(angle));
-
-	return result;
-}
