@@ -80,15 +80,22 @@ ALenum WAVHandle::getFormat() const {
 	return format;
 }
 
-int WAVHandle::getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char* data) {
+std::vector<unsigned char> WAVHandle::getChunk(unsigned int streamPosition, unsigned int chunkSize) const {
 	int remaining = m_data.size() - streamPosition;
-	remaining = (remaining >= 0) ? remaining : 0;
-	int bytesRead = (remaining < chunkSize) ? remaining : chunkSize;
-	
-	memcpy(data, &m_data[streamPosition], bytesRead);
 
-	return bytesRead;
+	return std::vector<unsigned char>(m_data.begin() + streamPosition,
+									  (remaining > chunkSize) ? m_data.begin() + streamPosition + chunkSize : m_data.end());
 }
+
+//int WAVHandle::getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char* data) {
+//	int remaining = m_data.size() - streamPosition;
+//	remaining = (remaining >= 0) ? remaining : 0;
+//	int bytesRead = (remaining < chunkSize) ? remaining : chunkSize;
+//	
+//	memcpy(data, &m_data[streamPosition], bytesRead);
+//
+//	return bytesRead;
+//}
 
 
 SoundBuffer::SoundBuffer() {
@@ -180,10 +187,23 @@ void SoundSource::setLooping(bool looping) {
 }
 
 void SoundSource::loadNextChunk(ALuint buffer) {
-	//std::cout << "Loading new chunk for buffer " << buffer << std::endl;
+	/** Defines a sample in a sound buffer */
+	struct Sample {
+		short m_left;
+		short m_right;
+	};
+	
+	std::vector<unsigned char> chunkData = std::move(m_soundHandle->getChunk(m_streamPosition, CHUNK_SIZE));
+	std::vector<double> right(chunkData.size() / 4);
+	std::vector<double> left(chunkData.size() / 4);
 
-	unsigned char chunkData[CHUNK_SIZE];
-	int bytesRead = m_soundHandle->getChunk(m_streamPosition, CHUNK_SIZE, chunkData);
+	const int MAX_SHORT = 32768;
+	for (int i = 0; i < chunkData.size(); i += 4) {
+		Sample* sample = (Sample*)&chunkData[i];
+
+		right[i / 4] = ((double)sample->m_right) / MAX_SHORT;
+		left[i / 4]  = ((double)sample->m_left) / MAX_SHORT;
+	}
 
 	// Apply stereo panning to the newly loaded chunk before sending it to OpenAL
 	glm::vec3 displacement = m_position - m_listener.m_position;
@@ -195,14 +215,8 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 	float distanceSquared = glm::dot(displacement, displacement);
 	float dotRight = glm::dot(direction, m_listener.getRight());
 	float dotLeft = glm::dot(direction, m_listener.getLeft());
-
-	struct Sample {
-		short m_left;
-		short m_right;
-	};
-
-	const int MAX_SHORT = 32768;
-	for (int i = 0; i < bytesRead; i += 4) {
+	
+	for (int i = 0; i < chunkData.size(); i += 4) {
 		Sample* sample = (Sample*)&chunkData[i];
 		
 		float left = (float)(sample->m_left) / MAX_SHORT;
@@ -220,7 +234,7 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 	
 
 	// copy the buffer to OpenAL
-	if (bytesRead > 0) {
+	/*if (chunkData.size() > 0) {
 		alBufferData(buffer, m_soundHandle->getFormat(), chunkData, bytesRead, m_soundHandle->getSampleRate());
 		if (alGetError() != AL_NO_ERROR)
 			throw r2ExceptionRuntimeM("Failed to assign buffer data");
@@ -230,7 +244,7 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 			throw r2ExceptionRuntimeM("Failed to queue buffer");
 
 		m_streamPosition += bytesRead;
-	}
+	}*/
 }
 
 SoundSource::PanVolume SoundSource::constantPower(float position) const {

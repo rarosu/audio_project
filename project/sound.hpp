@@ -8,6 +8,7 @@
 #include <AL/alc.h>
 #include <AL/alut.h>
 #include <glm/glm.hpp>
+#include "filter.hpp"
 
 /** Forward declarations */
 struct Listener;
@@ -36,7 +37,8 @@ public:
 	unsigned int getBytesPerSample() const { return m_bytesPerSample; }
 	size_t size() const { return m_data.size(); }
 
-	int getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char* data); 
+	std::vector<unsigned char> getChunk(unsigned int streamPosition, unsigned int chunkSize) const;
+	//int getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char* data); 
 private:
 	unsigned int m_channelCount;
 	unsigned int m_sampleRate;
