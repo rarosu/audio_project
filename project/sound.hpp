@@ -50,14 +50,14 @@ private:
 /** Abstracts the OpenAL concept of a source. It also implements double buffering. */
 class SoundSource {
 public:
-	SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3& position, bool looping, const Listener& listener);
+	SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3& position, bool looping, bool panning, const Listener& listener, std::vector<std::shared_ptr<Filter> > filters);
 	~SoundSource() throw();
 
 	void update();
 	void play();
 	void stop();
+	void toggle();
 	void setLooping(bool looping);
-
 	void addFilter(std::shared_ptr<Filter> filter);
 
 	ALuint getId() const { return m_id; }
@@ -65,6 +65,7 @@ private:
 	ALuint m_id;
 	glm::vec3 m_position;
 	bool m_looping;
+	bool m_panning;
 
 	const Listener& m_listener;
 	std::shared_ptr<WAVHandle> m_soundHandle;

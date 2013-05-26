@@ -18,6 +18,7 @@ public:
 };
 
 
+
 /** This filter is NOT LINEAR and should be applied last always */
 class StereoPanningFilter : public Filter {
 public:
@@ -37,6 +38,23 @@ private:
 };
 
 
+
+
+/** This filter will manipulate the volume by multiplying the amplitude with a fix constant. */
+class VolumeFilter : public Filter {
+public:
+	VolumeFilter();
+	VolumeFilter(float volume);
+
+	void setVolume(float volume);
+	Channels apply(const std::vector<double>& right, const std::vector<double>& left);
+private:
+	float m_volume;
+};
+
+
+
+
 /** Handle a FFTW array */
 template <typename T>
 class FFTWArray {
@@ -54,7 +72,7 @@ private:
 	FFTWArray& operator=(const FFTWArray<T>&);
 };
 
-/** Applies a filter using an impulse */
+/** Applies a filter using an impulse (NOT WORKING PROPERLY, SEE REPORT) */
 class ConvolutionFilter : public Filter {
 public:
 	ConvolutionFilter(std::vector<double>& impulseTime);
@@ -62,10 +80,30 @@ public:
 	Channels apply(const std::vector<double>& right, const std::vector<double>& left);
 
 	static std::vector<double> generateEchoImpulse(int sampleRate, double delay, double decay);
+	static std::vector<double> generateSineImpulse(int size);
+	static std::vector<double> generateSquareImpulse(int size, double amplitude);
 private:
 	FFTWArray<fftw_complex> m_impulseFreq;
+	//std::vector<double> m_previousOverlap;
 
 	std::vector<double> applyImpulse(std::vector<double> samplesTime);
 };
+
+
+
+/** Applies a lowpass filter using an input side algorithm. (NOT WORKING PROPERLY, SEE REPORT) */
+class LowpassFilter : public Filter {
+public:
+	LowpassFilter(double frequency, int sampleRate);
+
+	Channels apply(const std::vector<double>& right, const std::vector<double>& left);
+private:
+	const double B;
+	const double A;
+
+	std::vector<double> applyFilter(const std::vector<double>& samples);
+};
+
+
 
 #endif

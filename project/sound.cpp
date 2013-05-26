@@ -47,6 +47,10 @@ WAVHandle::WAVHandle(const std::string& filepath) {
 			delete[] fnul;
 		}
 	} while (!file.eof());
+
+	// Throw if the format is unsupported
+	if (getFormat() != AL_FORMAT_STEREO16)
+		throw r2ExceptionNotImplementedM("Format not supported");
 }
 
 ALenum WAVHandle::getFormat() const {
@@ -79,16 +83,6 @@ std::vector<unsigned char> WAVHandle::getChunk(unsigned int streamPosition, unsi
 									  (remaining > chunkSize) ? m_data.begin() + streamPosition + chunkSize : m_data.end());
 }
 
-//int WAVHandle::getChunk(unsigned int streamPosition, unsigned int chunkSize, unsigned char* data) {
-//	int remaining = m_data.size() - streamPosition;
-//	remaining = (remaining >= 0) ? remaining : 0;
-//	int bytesRead = (remaining < chunkSize) ? remaining : chunkSize;
-//	
-//	memcpy(data, &m_data[streamPosition], bytesRead);
-//
-//	return bytesRead;
-//}
-
 
 SoundBuffer::SoundBuffer() {
 	alGenBuffers(1, &m_id);
@@ -99,20 +93,18 @@ SoundBuffer::~SoundBuffer() throw() {
 }
 
 
-const int SoundSource::CHUNK_SIZE = 17640;
+const int SoundSource::CHUNK_SIZE = 30872;
 
-SoundSource::SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3& position, bool looping, const Listener& listener) 
+SoundSource::SoundSource(std::shared_ptr<WAVHandle> soundHandle, const glm::vec3& position, bool looping, bool panning, const Listener& listener, std::vector<std::shared_ptr<Filter> > filters) 
 	: m_soundHandle(soundHandle) 
 	, m_position(position) 
 	, m_looping(looping)
+	, m_panning(panning)
 	, m_streamPosition(0)
 	, m_listener(listener)
-	, m_stereoPanningFilter(listener, m_position) {
+	, m_stereoPanningFilter(listener, m_position)
+	, m_filters(filters) {
 	alGenSources(1, &m_id);
-
-	for (int i = 0; i < 2; ++i) {
-		loadNextChunk(m_buffers[i].getId());
-	}
 }
 
 SoundSource::~SoundSource() throw() {
@@ -129,6 +121,7 @@ void SoundSource::update() {
 	int processed = 0;
 	alGetSourcei(m_id, AL_BUFFERS_PROCESSED, &processed);
 
+	// All processed buffers should load and filter new data
 	while (processed--) {
 		ALuint buffer;
 
@@ -150,6 +143,10 @@ void SoundSource::update() {
 }
 
 void SoundSource::play() {
+	for (int i = 0; i < 2; ++i) {
+		loadNextChunk(m_buffers[i].getId());
+	}
+
 	alSourcePlay(m_id);
 }
 
@@ -165,6 +162,16 @@ void SoundSource::stop() {
 		if (alGetError() != AL_NO_ERROR)
 			throw r2ExceptionRuntimeM("Failed to unqueue buffer");
 	}
+}
+
+void SoundSource::toggle() {
+	ALint state;
+	alGetSourcei(m_id, AL_SOURCE_STATE, &state);
+
+	if (state == AL_PLAYING)
+		stop();
+	else
+		play();
 }
 
 void SoundSource::setLooping(bool looping) {
@@ -211,9 +218,11 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 	}
 
 	// Apply stereo panning
-	Channels result = m_stereoPanningFilter.apply(right, left);
-	right = result.m_right;
-	left = result.m_left;
+	if (m_panning) {
+		Channels result = m_stereoPanningFilter.apply(right, left);
+		right = result.m_right;
+		left = result.m_left;
+	}
 
 	// Transform the samples back into the interval [-MAX_SHORT, MAX_SHORT - 1]
 	for (int i = 0; i < chunkData.size(); i += 4) {
@@ -221,7 +230,7 @@ void SoundSource::loadNextChunk(ALuint buffer) {
 
 		sample->m_right = (short) (right[i / 4] * MAX_SHORT);
 		sample->m_left = (short) (left[i / 4] * MAX_SHORT);
-	}	
+	}
 
 	// copy the buffer to OpenAL
 	if (chunkData.size() > 0) {
